@@ -12,7 +12,7 @@ interface ImageData {
   alt_description?: string;
 }
 
-async function downloadImage(url: string): Promise<Buffer> {
+async function downloadImage(url: string): Promise<ArrayBuffer> {
   const response = await fetch(url, {
     headers: {
       'User-Agent': 'Mozilla/5.0',
@@ -23,8 +23,7 @@ async function downloadImage(url: string): Promise<Buffer> {
     throw new Error(`Failed to download image: ${response.statusText}`);
   }
 
-  const arrayBuffer = await response.arrayBuffer();
-  return Buffer.from(arrayBuffer);
+  return await response.arrayBuffer();
 }
 
 export async function POST(request: NextRequest) {
@@ -56,7 +55,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' });
+    // Use arraybuffer type for Vercel compatibility
+    const zipBuffer = await zip.generateAsync({ type: 'arraybuffer' });
     
     return new NextResponse(zipBuffer, {
       headers: {
