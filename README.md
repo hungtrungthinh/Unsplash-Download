@@ -6,6 +6,8 @@ Scripts to download high-resolution photos from Unsplash API organized by topics
 
 ![Unsplash Photo Downloader Demo](./screenshots/demo.png)
 
+> **Note**: Screenshot shows the web application interface with search functionality, image grid results, and download progress bar.
+
 **Live Demo**: [unsplash-download.vercel.app](https://unsplash-download.vercel.app)
 
 ### Features Showcase
