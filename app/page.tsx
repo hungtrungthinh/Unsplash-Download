@@ -31,6 +31,10 @@ export default function Home() {
   const [searchResults, setSearchResults] = useState<ImageResult[]>([]);
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
   const [isSearching, setIsSearching] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [currentQuery, setCurrentQuery] = useState('');
+  const [currentOrientation, setCurrentOrientation] = useState('all');
   const [isLoading, setIsLoading] = useState(true);
 
   // Load configuration from localStorage on mount
@@ -95,10 +99,13 @@ export default function Home() {
   const downloadCancelRef = useRef(false);
   const speedTrackerRef = useRef({ bytes: 0, startTime: Date.now() });
 
-  const handleSearch = async (query: string, orientation: string) => {
+  const handleSearch = async (query: string, orientation: string, page: number = 1, append: boolean = false) => {
     setIsSearching(true);
-    setSelectedImages(new Set());
-    setError('');
+    if (!append) {
+      setSelectedImages(new Set());
+      setError('');
+      setCurrentPage(1);
+    }
     
     try {
       if (!accessKey || accessKey.trim() === '' || accessKey === 'YOUR_ACCESS_KEY') {
@@ -114,7 +121,8 @@ export default function Home() {
           accessKey: accessKey.trim(),
           query,
           orientation,
-          perPage: 30,
+          perPage: 30, // Unsplash API maximum per page
+          page,
         }),
       });
 
@@ -134,23 +142,48 @@ export default function Home() {
         const errorDetails = data.details ? `\n\nDetails: ${data.details}` : '';
         throw new Error(`${errorMessage}${errorDetails}`);
       }
+      
       // Filter duplicates by image ID to avoid React key conflicts
       const uniqueResults = (data.results || []).filter((image: ImageResult, index: number, self: ImageResult[]) => 
         index === self.findIndex((img) => img.id === image.id)
       );
       
-      setSearchResults(uniqueResults);
+      if (append) {
+        // Append new results to existing ones
+        setSearchResults(prev => {
+          const combined = [...prev, ...uniqueResults];
+          // Filter duplicates again in case of overlap
+          return combined.filter((image, index, self) => 
+            index === self.findIndex((img) => img.id === image.id)
+          );
+        });
+      } else {
+        setSearchResults(uniqueResults);
+        setCurrentQuery(query);
+        setCurrentOrientation(orientation);
+      }
       
-      if (uniqueResults.length === 0) {
+      setTotalPages(data.totalPages || 0);
+      setCurrentPage(page);
+      
+      if (!append && uniqueResults.length === 0) {
         setError('No results found. Try different keywords.');
       }
     } catch (error) {
       console.error('Search error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Search failed';
       setError(errorMessage);
-      setSearchResults([]);
+      if (!append) {
+        setSearchResults([]);
+      }
     } finally {
       setIsSearching(false);
+    }
+  };
+
+  const handleLoadMore = () => {
+    if (currentPage < totalPages && !isSearching) {
+      handleSearch(currentQuery, currentOrientation, currentPage + 1, true);
     }
   };
 
@@ -395,8 +428,8 @@ export default function Home() {
 
   return (
     <main className={`min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 ${isDownloading ? 'pb-24' : ''}`}>
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-7xl mx-auto">
+      <div className="w-full mx-auto px-4 py-8">
+        <div className="max-w-[95%] xl:max-w-[1600px] mx-auto">
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
               Unsplash Photo Downloader
@@ -447,14 +480,30 @@ export default function Home() {
               )}
               
               {searchResults.length > 0 && (
-                <Results
-                  images={searchResults}
-                  selectedImages={selectedImages}
-                  onImageSelect={handleImageSelect}
-                  onSelectAll={handleSelectAll}
-                  onDownload={handleDownload}
-                  isDownloading={isDownloading}
-                />
+                <>
+                  <Results
+                    images={searchResults}
+                    selectedImages={selectedImages}
+                    onImageSelect={handleImageSelect}
+                    onSelectAll={handleSelectAll}
+                    onDownload={handleDownload}
+                    isDownloading={isDownloading}
+                  />
+                  {currentPage < totalPages && (
+                    <div className="mt-6 text-center">
+                      <button
+                        onClick={handleLoadMore}
+                        disabled={isSearching}
+                        className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
+                      >
+                        {isSearching ? 'Loading...' : `Load More (Page ${currentPage + 1} of ${totalPages})`}
+                      </button>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                        Showing {searchResults.length} images • {totalPages > 0 ? `${totalPages * 30} total available` : ''}
+                      </p>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}

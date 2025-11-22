@@ -56,7 +56,7 @@ export default function Footer() {
               © 2023 Boring Lab. All rights reserved.
             </p>
             <p className="text-sm text-gray-500 dark:text-gray-500 mt-2 md:mt-0">
-              Built with Next.js 16 • Powered by Unsplash API
+              Built with Next.js • Powered by Unsplash API
             </p>
           </div>
         </div>
