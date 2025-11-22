@@ -2,6 +2,22 @@
 
 Scripts to download high-resolution photos from Unsplash API organized by topics (technology, nature, city). Available in **Bash**, **Python**, and **Node.js**.
 
+## 🖼️ Demo
+
+![Unsplash Photo Downloader Demo](./screenshots/demo.png)
+
+**Live Demo**: [unsplash-download.vercel.app](https://unsplash-download.vercel.app)
+
+### Features Showcase
+
+- **🔍 Search & Filter**: Search photos by keywords with orientation filters (All, Landscape, Portrait, Square)
+- **📦 Bulk Download**: Select multiple images and download as ZIP file
+- **📊 Progress Tracking**: Real-time download progress with speed indicator (Mega.nz style)
+- **💾 Persistent Configuration**: Access Key saved in localStorage, persists after page refresh
+- **📱 Responsive Design**: Works seamlessly on desktop, tablet, and mobile devices
+- **🌙 Dark Mode**: Automatic dark mode support
+- **⚡ Fast & Efficient**: Client-side ZIP creation with progress tracking
+
 ## Table of Contents
 
 - [Available Scripts](#available-scripts)
