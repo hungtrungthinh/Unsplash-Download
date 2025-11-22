@@ -53,7 +53,7 @@ export default function Footer() {
         <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              © 2023 Boring Lab. All rights reserved.
+              © 2023 Boring Lab [Thinh Nguyen]. All rights reserved.
             </p>
             <p className="text-sm text-gray-500 dark:text-gray-500 mt-2 md:mt-0">
               Built with Next.js • Powered by Unsplash API
