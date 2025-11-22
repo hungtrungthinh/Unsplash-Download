@@ -57,11 +57,13 @@ export default function Results({ images, selectedImages, onImageSelect, onSelec
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {images.map((image) => {
+        {images.map((image, index) => {
           const isSelected = selectedImages.has(image.id);
+          // Use combination of id and index to ensure unique keys
+          const uniqueKey = `${image.id}-${index}`;
           return (
             <div
-              key={image.id}
+              key={uniqueKey}
               className={`relative group cursor-pointer rounded-lg overflow-hidden border-2 transition-all ${
                 isSelected
                   ? 'border-indigo-500 ring-2 ring-indigo-500 ring-offset-2'

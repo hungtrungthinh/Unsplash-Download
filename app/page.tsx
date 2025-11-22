@@ -94,9 +94,14 @@ export default function Home() {
         const errorDetails = data.details ? `\n\nDetails: ${data.details}` : '';
         throw new Error(`${errorMessage}${errorDetails}`);
       }
-      setSearchResults(data.results || []);
+      // Filter duplicates by image ID to avoid React key conflicts
+      const uniqueResults = (data.results || []).filter((image: ImageResult, index: number, self: ImageResult[]) => 
+        index === self.findIndex((img) => img.id === image.id)
+      );
       
-      if (data.results && data.results.length === 0) {
+      setSearchResults(uniqueResults);
+      
+      if (uniqueResults.length === 0) {
         setError('No results found. Try different keywords.');
       }
     } catch (error) {
