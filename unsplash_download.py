@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+# Author: Thinh Nguyen
+# License: MIT
+
 import os
 import time
 import requests

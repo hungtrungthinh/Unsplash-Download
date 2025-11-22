@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Author: Thinh Nguyen
+# License: MIT
+
 # Replace YOUR_ACCESS_KEY with your Access Key from Unsplash Developer
 ACCESS_KEY="YOUR_ACCESS_KEY"
 

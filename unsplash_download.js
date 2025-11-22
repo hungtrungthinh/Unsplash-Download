@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 
+// Author: Thinh Nguyen
+// License: MIT
+
 const https = require('https');
 const http = require('http');
 const fs = require('fs');
