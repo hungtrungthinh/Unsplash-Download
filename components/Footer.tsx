@@ -2,8 +2,8 @@
 
 export default function Footer() {
   return (
-    <footer className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 mt-12">
-      <div className="container mx-auto px-4 py-8">
+    <footer className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 mt-12 mb-0">
+      <div className="w-full mx-auto px-4 py-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div>
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
@@ -50,7 +50,7 @@ export default function Footer() {
           </div>
         </div>
         
-        <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+        <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <p className="text-sm text-gray-600 dark:text-gray-400">
               © 2023 Boring Lab [Thinh Nguyen]. All rights reserved.
