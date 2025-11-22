@@ -41,34 +41,57 @@ export default function Home() {
     setSelectedImages(new Set());
   };
 
+  const [error, setError] = useState('');
+
   const handleSearch = async (query: string, orientation: string) => {
     setIsSearching(true);
     setSelectedImages(new Set());
+    setError('');
     
     try {
+      if (!accessKey || accessKey.trim() === '' || accessKey === 'YOUR_ACCESS_KEY') {
+        throw new Error('Please configure a valid Access Key first');
+      }
+
       const response = await fetch('/api/search', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          accessKey,
+          accessKey: accessKey.trim(),
           query,
           orientation,
           perPage: 30,
         }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Search failed');
+      // Read response body only once
+      const contentType = response.headers.get('content-type');
+      let data;
+      
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        throw new Error(`Unexpected response format: ${text}`);
       }
-
-      const data = await response.json();
+      
+      if (!response.ok) {
+        const errorMessage = data.error || 'Search failed';
+        const errorDetails = data.details ? `\n\nDetails: ${data.details}` : '';
+        throw new Error(`${errorMessage}${errorDetails}`);
+      }
       setSearchResults(data.results || []);
+      
+      if (data.results && data.results.length === 0) {
+        setError('No results found. Try different keywords.');
+      }
     } catch (error) {
       console.error('Search error:', error);
-      alert(error instanceof Error ? error.message : 'Search failed');
+      const errorMessage = error instanceof Error ? error.message : 'Search failed';
+      setError(errorMessage);
+      setSearchResults([]);
     } finally {
       setIsSearching(false);
     }
@@ -109,9 +132,24 @@ export default function Home() {
         body: JSON.stringify({ images: imagesToDownload }),
       });
 
+      // For download, check status and read blob
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Download failed');
+        // Clone response to read error without consuming body
+        const clonedResponse = response.clone();
+        let errorMessage = 'Download failed';
+        try {
+          const contentType = clonedResponse.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const errorData = await clonedResponse.json();
+            errorMessage = errorData.error || 'Download failed';
+          } else {
+            const errorText = await clonedResponse.text();
+            errorMessage = errorText || 'Download failed';
+          }
+        } catch (e) {
+          errorMessage = `Download failed: ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
       }
 
       const blob = await response.blob();
@@ -153,6 +191,30 @@ export default function Home() {
                 onReset={handleReset}
                 isSearching={isSearching}
               />
+              
+              {error && (
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                  <div className="flex items-start">
+                    <svg className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div className="flex-1">
+                      <h3 className="text-sm font-medium text-red-800 dark:text-red-200 mb-1">
+                        Error
+                      </h3>
+                      <p className="text-sm text-red-700 dark:text-red-300 whitespace-pre-line">{error}</p>
+                      {error.includes('Access Key') && (
+                        <p className="text-xs text-red-600 dark:text-red-400 mt-2">
+                          Make sure you've copied the complete Access Key from{' '}
+                          <a href="https://unsplash.com/developers" target="_blank" rel="noopener noreferrer" className="underline">
+                            Unsplash Developers
+                          </a>
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
               
               {searchResults.length > 0 && (
                 <Results

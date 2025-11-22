@@ -32,12 +32,57 @@ export async function POST(request: NextRequest) {
 
     const url = `https://api.unsplash.com/search/photos?${params.toString()}`;
     
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'Unsplash-Downloader/1.0',
+      },
+    });
     
     if (!response.ok) {
-      const errorData = await response.text();
+      let errorMessage = `Unsplash API error: ${response.statusText}`;
+      let errorDetails = '';
+      
+      // Read response body only once
+      try {
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await response.json();
+          errorDetails = JSON.stringify(errorData);
+          
+          // Extract error message from Unsplash API response if available
+          if (errorData.errors && Array.isArray(errorData.errors) && errorData.errors.length > 0) {
+            errorMessage = errorData.errors[0];
+          } else if (errorData.error) {
+            errorMessage = errorData.error;
+          }
+        } else {
+          errorDetails = await response.text();
+        }
+      } catch (e) {
+        errorDetails = 'Unable to read error details';
+      }
+      
+      // Provide more helpful error messages based on status code
+      if (response.status === 401 || response.status === 403) {
+        errorMessage = 'Invalid or unauthorized Access Key. Please check your Access Key and make sure it is correct.';
+      } else if (response.status === 429) {
+        errorMessage = 'Rate limit exceeded. Please try again later or upgrade to Production API.';
+      }
+      
+      console.error('Unsplash API Error:', {
+        status: response.status,
+        statusText: response.statusText,
+        details: errorDetails,
+        url: url.replace(accessKey, 'HIDDEN'),
+      });
+      
       return NextResponse.json(
-        { error: `Unsplash API error: ${response.statusText}`, details: errorData },
+        { 
+          error: errorMessage, 
+          details: errorDetails,
+          status: response.status,
+        },
         { status: response.status }
       );
     }
