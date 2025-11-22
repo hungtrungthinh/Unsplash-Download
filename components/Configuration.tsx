@@ -4,11 +4,13 @@ import { useState } from 'react';
 
 interface ConfigurationProps {
   onConfigure: (accessKey: string, mode: 'demo' | 'production') => void;
+  savedAccessKey?: string;
+  savedMode?: 'demo' | 'production';
 }
 
-export default function Configuration({ onConfigure }: ConfigurationProps) {
-  const [accessKey, setAccessKey] = useState('');
-  const [mode, setMode] = useState<'demo' | 'production'>('demo');
+export default function Configuration({ onConfigure, savedAccessKey, savedMode }: ConfigurationProps) {
+  const [accessKey, setAccessKey] = useState(savedAccessKey || '');
+  const [mode, setMode] = useState<'demo' | 'production'>(savedMode || 'demo');
   const [error, setError] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {

@@ -60,11 +60,21 @@ export default function Search({ accessKey, mode, onSearch, onReset, isSearching
         </button>
       </div>
 
-      <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-        <p className="text-sm text-blue-800 dark:text-blue-200">
-          <strong>Mode:</strong> {mode === 'demo' ? 'Demo API' : 'Production API'} 
-          ({mode === 'demo' ? '50' : '5,000'} requests/hour)
-        </p>
+      <div className="mb-4 space-y-2">
+        <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+          <p className="text-sm text-blue-800 dark:text-blue-200">
+            <strong>Mode:</strong> {mode === 'demo' ? 'Demo API' : 'Production API'} 
+            ({mode === 'demo' ? '50' : '5,000'} requests/hour)
+          </p>
+        </div>
+        <div className="p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+          <p className="text-xs text-green-800 dark:text-green-200 flex items-center">
+            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            Configuration saved. Access Key will persist after page refresh.
+          </p>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">

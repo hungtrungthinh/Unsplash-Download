@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Configuration from '@/components/Configuration';
 import Search from '@/components/Search';
 import Results from '@/components/Results';
 import ProgressBar from '@/components/ProgressBar';
 import JSZip from 'jszip';
+
+const STORAGE_KEY = 'unsplash_config';
 
 interface ImageResult {
   id: string;
@@ -28,11 +30,41 @@ export default function Home() {
   const [searchResults, setSearchResults] = useState<ImageResult[]>([]);
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
   const [isSearching, setIsSearching] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load configuration from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedConfig = localStorage.getItem(STORAGE_KEY);
+      if (savedConfig) {
+        const config = JSON.parse(savedConfig);
+        if (config.accessKey && config.mode) {
+          setAccessKey(config.accessKey);
+          setMode(config.mode);
+          setIsConfigured(true);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading configuration:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   const handleConfigure = (key: string, selectedMode: 'demo' | 'production') => {
     setAccessKey(key);
     setMode(selectedMode);
     setIsConfigured(true);
+    
+    // Save to localStorage
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        accessKey: key,
+        mode: selectedMode,
+      }));
+    } catch (error) {
+      console.error('Error saving configuration:', error);
+    }
   };
 
   const handleReset = () => {
@@ -41,6 +73,13 @@ export default function Home() {
     setIsConfigured(false);
     setSearchResults([]);
     setSelectedImages(new Set());
+    
+    // Clear from localStorage
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (error) {
+      console.error('Error clearing configuration:', error);
+    }
   };
 
   const [error, setError] = useState('');
@@ -341,6 +380,18 @@ export default function Home() {
     });
   };
 
+  // Show loading state while checking localStorage
+  if (isLoading) {
+    return (
+      <main className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-300">Loading...</p>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className={`min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 ${isDownloading ? 'pb-24' : ''}`}>
       <div className="container mx-auto px-4 py-8">
@@ -355,7 +406,11 @@ export default function Home() {
           </div>
 
           {!isConfigured ? (
-            <Configuration onConfigure={handleConfigure} />
+            <Configuration 
+              onConfigure={handleConfigure}
+              savedAccessKey={accessKey}
+              savedMode={mode}
+            />
           ) : (
             <div className="space-y-6">
               <Search 
