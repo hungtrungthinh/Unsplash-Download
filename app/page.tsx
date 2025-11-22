@@ -5,6 +5,7 @@ import Configuration from '@/components/Configuration';
 import Search from '@/components/Search';
 import Results from '@/components/Results';
 import ProgressBar from '@/components/ProgressBar';
+import Footer from '@/components/Footer';
 import JSZip from 'jszip';
 
 const STORAGE_KEY = 'unsplash_config';
@@ -470,6 +471,8 @@ export default function Home() {
           onCancel={handleCancelDownload}
         />
       )}
+      
+      <Footer />
     </main>
   );
 }
