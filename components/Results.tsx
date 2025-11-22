@@ -22,9 +22,10 @@ interface ResultsProps {
   onImageSelect: (imageId: string) => void;
   onSelectAll: () => void;
   onDownload: () => void;
+  isDownloading?: boolean;
 }
 
-export default function Results({ images, selectedImages, onImageSelect, onSelectAll, onDownload }: ResultsProps) {
+export default function Results({ images, selectedImages, onImageSelect, onSelectAll, onDownload, isDownloading = false }: ResultsProps) {
   const allSelected = selectedImages.size === images.length && images.length > 0;
 
   return (
@@ -47,10 +48,10 @@ export default function Results({ images, selectedImages, onImageSelect, onSelec
           </button>
           <button
             onClick={onDownload}
-            disabled={selectedImages.size === 0}
+            disabled={selectedImages.size === 0 || isDownloading}
             className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
           >
-            Download ZIP ({selectedImages.size})
+            {isDownloading ? 'Downloading...' : `Download ZIP (${selectedImages.size})`}
           </button>
         </div>
       </div>

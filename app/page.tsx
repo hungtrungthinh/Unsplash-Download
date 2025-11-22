@@ -1,9 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import Configuration from '@/components/Configuration';
 import Search from '@/components/Search';
 import Results from '@/components/Results';
+import ProgressBar from '@/components/ProgressBar';
+import JSZip from 'jszip';
 
 interface ImageResult {
   id: string;
@@ -42,6 +44,16 @@ export default function Home() {
   };
 
   const [error, setError] = useState('');
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState({
+    progress: 0,
+    speed: '0 B/s',
+    downloaded: 0,
+    total: 0,
+    fileName: '',
+  });
+  const downloadCancelRef = useRef(false);
+  const speedTrackerRef = useRef({ bytes: 0, startTime: Date.now() });
 
   const handleSearch = async (query: string, orientation: string) => {
     setIsSearching(true);
@@ -115,6 +127,21 @@ export default function Home() {
     }
   };
 
+  const calculateSpeed = (bytesDownloaded: number, startTime: number): string => {
+    const elapsed = (Date.now() - startTime) / 1000; // seconds
+    if (elapsed === 0) return '0 B/s';
+    const speed = bytesDownloaded / elapsed;
+    return formatBytes(speed) + '/s';
+  };
+
+  const formatBytes = (bytes: number): string => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+  };
+
   const handleDownload = async () => {
     if (selectedImages.size === 0) {
       alert('Please select at least one image');
@@ -122,53 +149,195 @@ export default function Home() {
     }
 
     const imagesToDownload = searchResults.filter(img => selectedImages.has(img.id));
+    downloadCancelRef.current = false;
+    setIsDownloading(true);
     
-    try {
-      const response = await fetch('/api/download-selected', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ images: imagesToDownload }),
-      });
+    const fileName = `unsplash-photos-${Date.now()}.zip`;
+    setDownloadProgress({
+      progress: 0,
+      speed: '0 B/s',
+      downloaded: 0,
+      total: 0,
+      fileName,
+    });
 
-      // For download, check status and read blob
-      if (!response.ok) {
-        // Clone response to read error without consuming body
-        const clonedResponse = response.clone();
-        let errorMessage = 'Download failed';
-        try {
-          const contentType = clonedResponse.headers.get('content-type');
-          if (contentType && contentType.includes('application/json')) {
-            const errorData = await clonedResponse.json();
-            errorMessage = errorData.error || 'Download failed';
-          } else {
-            const errorText = await clonedResponse.text();
-            errorMessage = errorText || 'Download failed';
-          }
-        } catch (e) {
-          errorMessage = `Download failed: ${response.statusText}`;
+    try {
+      const zip = new JSZip();
+      let totalDownloaded = 0;
+      let totalSize = 0;
+      const startTime = Date.now();
+      speedTrackerRef.current = { bytes: 0, startTime };
+
+      // Estimate total size (rough estimate, will update as we download)
+      // Start with a reasonable estimate, will be updated as we get actual sizes
+      totalSize = imagesToDownload.length * 3 * 1024 * 1024; // Estimate 3MB per image initially
+
+      // Download images and add to ZIP
+      for (let i = 0; i < imagesToDownload.length; i++) {
+        if (downloadCancelRef.current) {
+          setIsDownloading(false);
+          return;
         }
-        throw new Error(errorMessage);
+
+        const image = imagesToDownload[i];
+        const imageStartTime = Date.now();
+
+        try {
+          // Download image with progress tracking
+          const response = await fetch(image.urls.raw, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0',
+            },
+          });
+
+          if (!response.ok) {
+            console.error(`Failed to download image ${image.id}`);
+            continue;
+          }
+
+          const contentLength = parseInt(response.headers.get('content-length') || '0', 10);
+          if (contentLength > 0) {
+            // Update total size with actual size for this image
+            const estimatedPerImage = totalSize / imagesToDownload.length;
+            totalSize = totalSize - estimatedPerImage + contentLength;
+          }
+
+          const reader = response.body?.getReader();
+          if (!reader) {
+            throw new Error('No reader available');
+          }
+
+          const chunks: Uint8Array[] = [];
+          let receivedLength = 0;
+
+          while (true) {
+            if (downloadCancelRef.current) {
+              reader.cancel();
+              setIsDownloading(false);
+              return;
+            }
+
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            chunks.push(value);
+            receivedLength += value.length;
+            totalDownloaded += value.length;
+            speedTrackerRef.current.bytes = totalDownloaded;
+
+            // Update progress
+            const progress = (totalDownloaded / totalSize) * 100;
+            const speed = calculateSpeed(totalDownloaded, startTime);
+            
+            setDownloadProgress({
+              progress: Math.min(progress, 99), // Cap at 99% until ZIP creation
+              speed,
+              downloaded: totalDownloaded,
+              total: totalSize,
+              fileName,
+            });
+          }
+
+          // Combine chunks into single Uint8Array
+          const allChunks = new Uint8Array(receivedLength);
+          let position = 0;
+          for (const chunk of chunks) {
+            allChunks.set(chunk, position);
+            position += chunk.length;
+          }
+
+          // Add to ZIP
+          const filename = image.description 
+            ? `${image.id}_${image.description.substring(0, 30).replace(/[^a-z0-9]/gi, '_')}.jpg`
+            : `${image.id}_${image.alt_description || 'photo'}.jpg`;
+          
+          zip.file(filename, allChunks);
+        } catch (error) {
+          console.error(`Error downloading image ${image.id}:`, error);
+          continue;
+        }
       }
 
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+      if (downloadCancelRef.current) {
+        setIsDownloading(false);
+        return;
+      }
+
+      // Generate ZIP file
+      setDownloadProgress(prev => ({ ...prev, progress: 99, speed: 'Creating ZIP...' }));
+      
+      const zipBlob = await zip.generateAsync(
+        { type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } },
+        (metadata) => {
+          // Update progress during ZIP creation
+          if (metadata.percent) {
+            const finalProgress = 99 + (metadata.percent / 100);
+            setDownloadProgress(prev => ({
+              ...prev,
+              progress: Math.min(finalProgress, 99.9),
+            }));
+          }
+        }
+      );
+
+      // Final update
+      setDownloadProgress({
+        progress: 100,
+        speed: 'Complete',
+        downloaded: zipBlob.size,
+        total: zipBlob.size,
+        fileName,
+      });
+
+      // Small delay to show 100%
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Download the file
+      const url = window.URL.createObjectURL(zipBlob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `unsplash-photos-${Date.now()}.zip`;
+      a.download = fileName;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
+
+      setIsDownloading(false);
+      setDownloadProgress({
+        progress: 0,
+        speed: '0 B/s',
+        downloaded: 0,
+        total: 0,
+        fileName: '',
+      });
     } catch (error) {
       console.error('Download error:', error);
-      alert(error instanceof Error ? error.message : 'Download failed');
+      setIsDownloading(false);
+      setError(error instanceof Error ? error.message : 'Download failed');
+      setDownloadProgress({
+        progress: 0,
+        speed: '0 B/s',
+        downloaded: 0,
+        total: 0,
+        fileName: '',
+      });
     }
   };
 
+  const handleCancelDownload = () => {
+    downloadCancelRef.current = true;
+    setIsDownloading(false);
+    setDownloadProgress({
+      progress: 0,
+      speed: '0 B/s',
+      downloaded: 0,
+      total: 0,
+      fileName: '',
+    });
+  };
+
   return (
-    <main className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+    <main className={`min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 ${isDownloading ? 'pb-24' : ''}`}>
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-8">
@@ -223,12 +392,24 @@ export default function Home() {
                   onImageSelect={handleImageSelect}
                   onSelectAll={handleSelectAll}
                   onDownload={handleDownload}
+                  isDownloading={isDownloading}
                 />
               )}
             </div>
           )}
         </div>
       </div>
+
+      {isDownloading && (
+        <ProgressBar
+          progress={downloadProgress.progress}
+          speed={downloadProgress.speed}
+          downloaded={downloadProgress.downloaded}
+          total={downloadProgress.total}
+          fileName={downloadProgress.fileName}
+          onCancel={handleCancelDownload}
+        />
+      )}
     </main>
   );
 }
